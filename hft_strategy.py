@@ -58,6 +58,8 @@ class HighFrequencyStrategy:
             return "ETH"
         if "Solana" in question or "SOL" in question:
             return "SOL"
+        if "Ripple" in question or "XRP" in question:
+            return "XRP"
         return "?"
 
     def extract_target_price(self, question):
@@ -210,13 +212,15 @@ class HighFrequencyStrategy:
         )
 
         # Minimum edge required after fees + frictions
+        # 0.001 (0.1%) -> 0.01 (1.0%)로 대폭 상향 (확실한 자리만 진입)
         min_edge = _clip(
             (0.5 * self.fee_rate) + 0.05 * spread_pct + 0.10 * sigma + 0.05 * illiq,
-            0.001,
-            0.050,
+            0.010,
+            0.080,
         )
 
-        entry_score_thr = _clip(0.20 + 0.05 * max(z_tox, 0.0), 0.15, 0.45)
+        # 진입 점수 기준 상향: 최소 0.30점 이상 (기존 0.15)
+        entry_score_thr = _clip(0.30 + 0.05 * max(z_tox, 0.0), 0.30, 0.60)
 
         return {
             "arb_thr": arb_thr,
@@ -447,7 +451,7 @@ class HighFrequencyStrategy:
                     # hft_strategy.py:265 즈음에서 momentum 변수를 가져와야 함.
                     # 구조상 여기서 모멘텀을 다시 확인하거나 강제 필터링
                     # (간소화를 위해 Score Threshold를 높이는 방식으로 우회 구현)
-                    if score < 0.4: # 5분 시장은 0.4점 미만 무시
+                    if score < 0.5: # 5분 시장은 0.5점 미만 무시 (기존 0.4 -> 상향)
                         continue
                 
                 if expected_edge < edge_required:
@@ -519,7 +523,10 @@ class HighFrequencyStrategy:
         # 기존: 0.30% -> 변경: 수수료 2배(0.4%) + 알파 = 최소 0.6% 이상
         min_feasible_tp = (self.fee_rate * 2 * 100) + 0.2
         tp_pct = max(min_feasible_tp, dyn["min_edge"] * 100 * 1.5)
-        hard_stop_pct = -max(2.0, dyn["min_edge"] * 100 * 3.0)
+        
+        # 스탑로스 완화: 노이즈에 털리지 않도록 여유를 둠 (대신 진입을 신중하게 함)
+        # 기존: -2.0% ~ -5.0% -> 변경: -7.0% 고정 (단, 독성감지 시 조기청산 별도 존재)
+        hard_stop_pct = -7.0
 
         # If inventory is crowded on this side, unwind early near breakeven.
         same_side_crowded = (q_norm * pos["side"]) > 0.55
@@ -557,7 +564,7 @@ class HighFrequencyStrategy:
 
         self.active_positions[tid] = {
             "avg_price": entry_price,
-            "total_cost": amount,
+            "total_cost": total_spend, # 수수료 포함된 실제 지출액으로 저장 (PnL 정확도 향상)
             "shares": amount / entry_price,
             "side": side,  # +1 YES(UP), -1 NO(DOWN)
             "dir": direction,
