@@ -212,16 +212,8 @@ class HighFrequencyStrategy:
             0.050,
         )
 
-        # Minimum edge required after fees + frictions
-        # 0.001 (0.1%) -> 0.01 (1.0%)로 대폭 상향 (확실한 자리만 진입)
-        min_edge = _clip(
-            (0.5 * self.fee_rate) + 0.05 * spread_pct + 0.10 * sigma + 0.05 * illiq,
-            0.010,
-            0.080,
-        )
-
-        # 진입 점수 기준 상향: 최소 0.30점 이상 (기존 0.15)
-        entry_score_thr = _clip(0.30 + 0.05 * max(z_tox, 0.0), 0.30, 0.60)
+        # 진입 점수 기준 하향: 최소 0.15점 이상 (기존 0.30)
+        entry_score_thr = _clip(0.15 + 0.05 * max(z_tox, 0.0), 0.15, 0.45)
 
         return {
             "arb_thr": arb_thr,
@@ -338,7 +330,8 @@ class HighFrequencyStrategy:
                          continue
                     
                     # 강력한 모멘텀 필터: 바이낸스가 확실하게 튈 때만 진입
-                    mom_threshold = 0.6  # 0.6 이상 (매우 강한 신호)
+                    # 강력한 모멘텀 필터 완화: 0.6 -> 0.45
+                    mom_threshold = 0.45 
                 else:
                     # [15분 이상 시장] 정석 Maker 모드
                     # 만기 3분 전 진입 금지 (기존 안전장치)
@@ -452,7 +445,7 @@ class HighFrequencyStrategy:
                     # hft_strategy.py:265 즈음에서 momentum 변수를 가져와야 함.
                     # 구조상 여기서 모멘텀을 다시 확인하거나 강제 필터링
                     # (간소화를 위해 Score Threshold를 높이는 방식으로 우회 구현)
-                    if score < 0.5: # 5분 시장은 0.5점 미만 무시 (기존 0.4 -> 상향)
+                    if score < 0.3: # 5분 시장 필터 완화 (0.5 -> 0.3)
                         continue
                 
                 if expected_edge < edge_required:
