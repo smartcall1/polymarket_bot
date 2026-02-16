@@ -12,6 +12,7 @@ def _clip(x, lo, hi):
 
 
 class HighFrequencyStrategy:
+    # Sniper Mode Ver 2.0 (Activated)
     def __init__(self, client):
         self.client = client
         self.initial_balance = 1000.0
