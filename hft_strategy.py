@@ -212,6 +212,14 @@ class HighFrequencyStrategy:
             0.050,
         )
 
+        # Minimum edge required after fees + frictions
+        # 0.01 (1.0%) -> 0.003 (0.3%)로 대폭 하향 (그리디하게 진입)
+        min_edge = _clip(
+            (0.5 * self.fee_rate) + 0.05 * spread_pct + 0.10 * sigma + 0.05 * illiq,
+            0.003,
+            0.080,
+        )
+
         # 진입 점수 기준 하향: 최소 0.15점 이상 (기존 0.30)
         entry_score_thr = _clip(0.15 + 0.05 * max(z_tox, 0.0), 0.15, 0.45)
 
